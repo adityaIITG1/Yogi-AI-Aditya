@@ -35,6 +35,7 @@ export function useArduino() {
     const lastDataTimeRef = useRef<number>(0);
     const ibiHistoryRef = useRef<number[]>([]);
     const lastInsightTimeRef = useRef<number>(0);
+    const lastHeartRateRef = useRef<number>(0);
 
     // Data Timeout & Reset Logic
     useEffect(() => {
@@ -179,8 +180,10 @@ export function useArduino() {
                     smoothedHr = 0;
                 }
             } else {
-                smoothedHr = data.heartRate; // Keep previous if no new HR
+                smoothedHr = lastHeartRateRef.current; // Keep previous if no new HR
             }
+
+            lastHeartRateRef.current = smoothedHr;
 
             // SpO2 OVERRIDE LOGIC (User Request: 97-100% when HR active)
             let finalSpo2 = 0;
@@ -212,7 +215,7 @@ export function useArduino() {
                 setTimeout(() => setData(prev => ({ ...prev, beatDetected: false })), 100);
             }
         }
-    }, [data.heartRate, data.insightText, data.finding]);
+    }, []);
 
     const disconnect = useCallback(async () => {
         isReadingRef.current = false;

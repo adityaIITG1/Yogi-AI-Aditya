@@ -63,7 +63,9 @@ export default function YogaCanvas() {
     const namasteHoldTimeRef = useRef(0); // Screenshot Trigger
     const lastScreenshotTimeRef = useRef(0);
     const lastDetectionTimeRef = useRef(0);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lastHandResultsRef = useRef<any>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lastFaceResultsRef = useRef<any>(null);
 
     // Third Eye & Particles
@@ -71,12 +73,14 @@ export default function YogaCanvas() {
     const particlesRef = useRef<Array<{ x: number, y: number, vx: number, vy: number, life: number, type: string, color: string }>>([]);
 
     // UI State for Level & Stats
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [xp, setXp] = useState(0);
     const [level, setLevel] = useState(3);
     const [levelProgress, setLevelProgress] = useState(0);
     const [warningMsg, setWarningMsg] = useState<string | null>(null);
     const [mood, setMood] = useState("Relaxed");
     const [posture, setPosture] = useState("Good");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [alignmentMode, setAlignmentMode] = useState("Standard");
 
     // Debounce Refs
@@ -89,6 +93,7 @@ export default function YogaCanvas() {
     const [uiEnergies, setUiEnergies] = useState<number[]>([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
     const [sessionTime, setSessionTime] = useState("0.0 min");
     const [screenshotFlash, setScreenshotFlash] = useState(false);
+    const [namasteHoldTime, setNamasteHoldTime] = useState(0);
 
     const addLog = (msg: string) => setLogs(prev => [...prev.slice(-4), msg]);
 
@@ -293,6 +298,7 @@ export default function YogaCanvas() {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -351,7 +357,9 @@ export default function YogaCanvas() {
 
             // 2. AI Detection (Throttled to ~30fps)
             const now = Date.now();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let handResults = { landmarks: [] as any[], worldLandmarks: [] as any[] };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let faceResults = { faceLandmarks: [] as any[] };
 
             // Throttle detection to every 100ms (approx 10fps)
@@ -449,15 +457,24 @@ export default function YogaCanvas() {
 
                         // Screenshot Logic
                         namasteHoldTimeRef.current += 16; // ~16ms per frame
+
+                        // Sync state for UI (Progress Bar)
+                        if (namasteHoldTimeRef.current > 100) {
+                            setNamasteHoldTime(namasteHoldTimeRef.current);
+                        }
+
                         if (namasteHoldTimeRef.current > 1000) { // 1 second hold
                             takeScreenshot();
                             namasteHoldTimeRef.current = 0; // Reset
+                            setNamasteHoldTime(0);
                         }
                     } else {
                         namasteHoldTimeRef.current = 0;
+                        setNamasteHoldTime(0);
                     }
                 } else {
                     namasteHoldTimeRef.current = 0;
+                    setNamasteHoldTime(0);
                 }
             }
 
@@ -498,8 +515,8 @@ export default function YogaCanvas() {
                 const gazeX = analysis.gazeX || 0;
 
                 // Calculate Target
-                let targetX = width / 2 + gazeX * (width * 0.8);
-                let targetY = height * 0.6;
+                const targetX = width / 2 + gazeX * (width * 0.8);
+                const targetY = height * 0.6;
                 let targetLabel = null;
 
                 if (gazeX < -0.3) targetLabel = "Right"; // Screen Left
@@ -886,6 +903,7 @@ export default function YogaCanvas() {
                 cancelAnimationFrame(requestRef.current);
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [handLandmarker, faceLandmarker]);
 
     return (
@@ -1085,13 +1103,13 @@ export default function YogaCanvas() {
             )}
 
             {/* Draw Namaste Progress Bar (Screenshot) */}
-            {namasteHoldTimeRef.current > 100 && (
+            {namasteHoldTime > 100 && (
                 <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-50">
                     <div className="text-white font-bold text-xs tracking-widest animate-pulse">HOLD FOR SCREENSHOT...</div>
                     <div className="w-48 h-2 bg-black/50 rounded-full overflow-hidden border border-white/20">
                         <div
                             className="h-full bg-green-500 transition-all duration-75 ease-linear"
-                            style={{ width: `${Math.min(100, (namasteHoldTimeRef.current / 1000) * 100)}%` }}
+                            style={{ width: `${Math.min(100, (namasteHoldTime / 1000) * 100)}%` }}
                         ></div>
                     </div>
                 </div>
