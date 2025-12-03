@@ -41,9 +41,10 @@ export function useVisionModels() {
                 setHandLandmarker(hand);
                 setFaceLandmarker(face);
                 setIsLoading(false);
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("Error loading models:", err);
-                setError(err.message);
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                setError(errorMessage);
                 setIsLoading(false);
             }
         };

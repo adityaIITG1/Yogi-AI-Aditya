@@ -10,7 +10,6 @@ import { analyzeFace } from "@/utils/face-logic";
 import {
     drawUniverse,
     drawChakras,
-    drawRevolvingAura,
     drawSmartTracking,
 } from "@/utils/drawing";
 import { generateSmartCoachMessage } from "@/utils/smart-coach";
@@ -32,7 +31,7 @@ export default function YogaCanvas() {
 
     // Animation state
     const requestRef = useRef<number>(0);
-    const startTimeRef = useRef<number>(Date.now());
+    const startTimeRef = useRef<number>(0);
 
     // Refs for Animation Loop State (Fixes Stale Closure)
     const energiesRef = useRef<number[]>([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
@@ -56,12 +55,6 @@ export default function YogaCanvas() {
 
     const addLog = (msg: string) => setLogs(prev => [...prev.slice(-4), msg]);
 
-    useEffect(() => {
-        if (isLoading) addLog("AI: Loading models...");
-        if (handLandmarker && faceLandmarker) addLog("AI: Models loaded successfully");
-        if (aiError) addLog(`AI Error: ${aiError}`);
-    }, [isLoading, handLandmarker, faceLandmarker, aiError]);
-
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const speak = (text: string) => {
@@ -81,6 +74,23 @@ export default function YogaCanvas() {
             window.speechSynthesis.speak(utterance);
         }
     };
+
+    const hasLoadedRef = useRef(false);
+    const hasErrorRef = useRef(false);
+
+    useEffect(() => {
+        if (isLoading && !hasLoadedRef.current) {
+            // addLog("AI: Loading models...");
+        }
+        if (handLandmarker && faceLandmarker && !hasLoadedRef.current) {
+            setTimeout(() => addLog("AI: Models loaded successfully"), 0);
+            hasLoadedRef.current = true;
+        }
+        if (aiError && !hasErrorRef.current) {
+            setTimeout(() => addLog(`AI Error: ${aiError}`), 0);
+            hasErrorRef.current = true;
+        }
+    }, [isLoading, handLandmarker, faceLandmarker, aiError]);
 
     useEffect(() => {
         audioRef.current = new Audio("/adiyogi.mp3");
@@ -116,9 +126,10 @@ export default function YogaCanvas() {
                     videoRef.current.onloadeddata = () => addLog("Camera: Data loaded");
                     videoRef.current.play();
                     addLog("Camera: Playing stream");
-                } catch (err: any) {
+                } catch (err: unknown) {
                     console.error("Error accessing webcam:", err);
-                    addLog(`Camera Error: ${err.message}`);
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    addLog(`Camera Error: ${errorMessage}`);
                     setFeedback("Camera access denied.");
                 }
             }
@@ -146,265 +157,272 @@ export default function YogaCanvas() {
         }
     };
 
-    const animate = () => {
+    useEffect(() => {
         if (
-            !canvasRef.current ||
-            !videoRef.current ||
             !handLandmarker ||
             !faceLandmarker ||
-            videoRef.current.readyState < 2
-        ) {
-            requestRef.current = requestAnimationFrame(animate);
-            return;
-        }
+            !videoRef.current ||
+            !canvasRef.current
+        ) return;
 
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
-        const video = videoRef.current;
+        startTimeRef.current = Date.now();
 
-        if (!ctx) return;
-
-        if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-        }
-
-        const width = canvas.width;
-        const height = canvas.height;
-        const t = (Date.now() - startTimeRef.current) / 1000;
-
-        // 1. Draw Video
-        ctx.save();
-        ctx.scale(-1, 1);
-        ctx.translate(-width, 0);
-        ctx.drawImage(video, 0, 0, width, height);
-        ctx.restore();
-
-        // 2. AI Detection
-        const now = Date.now();
-        const handResults = handLandmarker.detectForVideo(video, now);
-        const faceResults = faceLandmarker.detectForVideo(video, now);
-
-        let currentGesture = null;
-        let isEyesClosed = false;
-
-        // Hand Logic
-        if (handResults.landmarks) {
-            for (const landmarks of handResults.landmarks) {
-                drawSmartTracking(ctx, landmarks, width, height);
-                const g = classifyGesture(landmarks);
-                if (g) currentGesture = g;
+        const animate = () => {
+            if (
+                !canvasRef.current ||
+                !videoRef.current ||
+                videoRef.current.readyState < 2
+            ) {
+                requestRef.current = requestAnimationFrame(animate);
+                return;
             }
-            if (handResults.landmarks.length >= 2) {
-                if (detectNamaste(handResults.landmarks)) {
-                    currentGesture = "Namaste / Anjali Mudra";
+
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext("2d");
+            const video = videoRef.current;
+
+            if (!ctx) return;
+
+            if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+            }
+
+            const width = canvas.width;
+            const height = canvas.height;
+            const t = (Date.now() - startTimeRef.current) / 1000;
+
+            // 1. Draw Video
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.translate(-width, 0);
+            ctx.drawImage(video, 0, 0, width, height);
+            ctx.restore();
+
+            // 2. AI Detection
+            const now = Date.now();
+            const handResults = handLandmarker.detectForVideo(video, now);
+            const faceResults = faceLandmarker.detectForVideo(video, now);
+
+            let currentGesture = null;
+            let isEyesClosed = false;
+
+            // Hand Logic
+            if (handResults.landmarks) {
+                for (const landmarks of handResults.landmarks) {
+                    drawSmartTracking(ctx, landmarks, width, height);
+                    const g = classifyGesture(landmarks);
+                    if (g) currentGesture = g;
                 }
-            }
-        }
-
-        // Face Logic
-        if (faceResults.faceLandmarks && faceResults.faceLandmarks.length > 0) {
-            const face = faceResults.faceLandmarks[0];
-            const analysis = analyzeFace(face);
-            isEyesClosed = analysis.isEyesClosed;
-
-            // Debug Eye State occasionally
-            if (Math.random() < 0.01) console.log("EAR:", analysis.avgEAR, "Closed:", isEyesClosed);
-        }
-
-        // Meditation Logic (Stabilized)
-        if (isEyesClosed) {
-            eyesOpenTimeRef.current = 0; // Reset open timer
-            if (eyesClosedTimeRef.current === 0) eyesClosedTimeRef.current = now;
-
-            // Trigger meditation after 1 second of eyes closed
-            if (now - eyesClosedTimeRef.current > 1000) {
-                isMeditationRef.current = true;
-            }
-        } else {
-            // Eyes are Open (or lost)
-            eyesClosedTimeRef.current = 0; // Reset closed timer
-
-            if (isMeditationRef.current) {
-                // If currently meditating, use a SAFER safety buffer (2000ms)
-                // This prevents "flickering" off due to camera noise
-                if (eyesOpenTimeRef.current === 0) eyesOpenTimeRef.current = now;
-
-                if (now - eyesOpenTimeRef.current > 2000) {
-                    isMeditationRef.current = false;
-
-                    // Only announce "Yoga Stopped" if NO gesture is active
-                    if (!currentGesture) {
-                        const msg = "Yoga band ho gaya hai. Meditation stopped.";
-                        setFeedback(msg);
-                        speak(msg);
-                    } else {
-                        setFeedback("Meditation ended. Maintaining Yoga pose.");
+                if (handResults.landmarks.length >= 2) {
+                    if (detectNamaste(handResults.landmarks)) {
+                        currentGesture = "Namaste / Anjali Mudra";
                     }
                 }
-            } else {
-                isMeditationRef.current = false;
             }
-        }
 
-        // Gesture State Update with Hysteresis (Debounce)
-        if (currentGesture) {
-            if (pendingGestureRef.current !== currentGesture) {
-                // New potential gesture detected, start timer
-                pendingGestureRef.current = currentGesture;
-                pendingGestureStartTimeRef.current = now;
+            // Face Logic
+            if (faceResults.faceLandmarks && faceResults.faceLandmarks.length > 0) {
+                const face = faceResults.faceLandmarks[0];
+                const analysis = analyzeFace(face);
+                isEyesClosed = analysis.isEyesClosed;
+
+                // Debug Eye State occasionally
+                // if (Math.random() < 0.01) console.log("EAR:", analysis.avgEAR, "Closed:", isEyesClosed);
+            }
+
+            // Meditation Logic (Stabilized)
+            if (isEyesClosed) {
+                eyesOpenTimeRef.current = 0; // Reset open timer
+                if (eyesClosedTimeRef.current === 0) eyesClosedTimeRef.current = now;
+
+                // Trigger meditation after 1 second of eyes closed
+                if (now - eyesClosedTimeRef.current > 1000) {
+                    isMeditationRef.current = true;
+                }
             } else {
-                // Same pending gesture, check duration
-                if (now - pendingGestureStartTimeRef.current > 500) { // 500ms stability required
-                    if (gestureRef.current !== currentGesture) {
-                        // Confirmed new gesture
-                        gestureRef.current = currentGesture;
-                        setGesture(currentGesture);
+                // Eyes are Open (or lost)
+                eyesClosedTimeRef.current = 0; // Reset closed timer
 
-                        const isGyan = currentGesture === "Gyan Mudra";
-                        const msg = generateSmartCoachMessage(energiesRef.current, "Calm", isMeditationRef.current, isGyan);
+                if (isMeditationRef.current) {
+                    // If currently meditating, use a SAFER safety buffer (2000ms)
+                    // This prevents "flickering" off due to camera noise
+                    if (eyesOpenTimeRef.current === 0) eyesOpenTimeRef.current = now;
 
-                        // Prevent repeating the same message too soon (10s)
-                        if (msg !== lastSpeechTextRef.current || now - lastSpeechTimeRef.current > 10000) {
+                    if (now - eyesOpenTimeRef.current > 2000) {
+                        isMeditationRef.current = false;
+
+                        // Only announce "Yoga Stopped" if NO gesture is active
+                        if (!currentGesture) {
+                            const msg = "Yoga band ho gaya hai. Meditation stopped.";
                             setFeedback(msg);
                             speak(msg);
-                            lastSpeechTextRef.current = msg;
-                            lastSpeechTimeRef.current = now;
+                        } else {
+                            setFeedback("Meditation ended. Maintaining Yoga pose.");
+                        }
+                    }
+                } else {
+                    isMeditationRef.current = false;
+                }
+            }
+
+            // Gesture State Update with Hysteresis (Debounce)
+            if (currentGesture) {
+                if (pendingGestureRef.current !== currentGesture) {
+                    // New potential gesture detected, start timer
+                    pendingGestureRef.current = currentGesture;
+                    pendingGestureStartTimeRef.current = now;
+                } else {
+                    // Same pending gesture, check duration
+                    if (now - pendingGestureStartTimeRef.current > 500) { // 500ms stability required
+                        if (gestureRef.current !== currentGesture) {
+                            // Confirmed new gesture
+                            gestureRef.current = currentGesture;
+                            setGesture(currentGesture);
+
+                            const isGyan = currentGesture === "Gyan Mudra";
+                            const msg = generateSmartCoachMessage(energiesRef.current, "Calm", isMeditationRef.current, isGyan);
+
+                            // Prevent repeating the same message too soon (10s)
+                            if (msg !== lastSpeechTextRef.current || now - lastSpeechTimeRef.current > 10000) {
+                                setFeedback(msg);
+                                speak(msg);
+                                lastSpeechTextRef.current = msg;
+                                lastSpeechTimeRef.current = now;
+                            }
                         }
                     }
                 }
+            } else {
+                // No gesture detected, reset pending if it was something
+                pendingGestureRef.current = null;
+                pendingGestureStartTimeRef.current = 0;
             }
-        } else {
-            // No gesture detected, reset pending if it was something
-            pendingGestureRef.current = null;
-            pendingGestureStartTimeRef.current = 0;
-        }
 
-        if (isMeditationRef.current && gestureRef.current !== "Meditation") {
-            // Trigger speech for meditation start
-            gestureRef.current = "Meditation";
-            setGesture("Meditation");
-            const msg = "Deep meditation detected. Your energy is rising rapidly.";
+            if (isMeditationRef.current && gestureRef.current !== "Meditation") {
+                // Trigger speech for meditation start
+                gestureRef.current = "Meditation";
+                setGesture("Meditation");
+                const msg = "Deep meditation detected. Your energy is rising rapidly.";
 
-            if (msg !== lastSpeechTextRef.current || now - lastSpeechTimeRef.current > 10000) {
+                if (msg !== lastSpeechTextRef.current || now - lastSpeechTimeRef.current > 10000) {
+                    setFeedback(msg);
+                    speak(msg);
+                    lastSpeechTextRef.current = msg;
+                    lastSpeechTimeRef.current = now;
+                }
+            }
+
+            // 3. Logic: Aura & Energy
+            const isYogaMode = !!currentGesture || isMeditationRef.current;
+
+            // Aura Dynamics
+            if (isYogaMode) {
+                auraIntensityRef.current = Math.min(1.0, auraIntensityRef.current + 0.08); // Faster Rise
+            } else {
+                auraIntensityRef.current = Math.max(0.0, auraIntensityRef.current - 0.08); // Faster Fade
+            }
+
+            // Energy Dynamics
+            const energies = energiesRef.current;
+            let allBalanced = true;
+
+            if (isMeditationRef.current) {
+                // SUPER FAST Rise for ALL chakras (Peaking to 100)
+                for (let i = 0; i < 7; i++) {
+                    energies[i] = Math.min(1.0, energies[i] + 0.02); // ~2% per frame (very fast)
+                    if (energies[i] < 1.0) allBalanced = false;
+                }
+            } else if (currentGesture) {
+                // If ANY gesture is active, slowly rise ALL energies (so boxes aren't empty)
+                for (let i = 0; i < 7; i++) {
+                    energies[i] = Math.min(1.0, energies[i] + 0.001); // Slow base rise
+                }
+
+                if (currentGesture === "Gyan Mudra") {
+                    // Specific Rise (Faster)
+                    energies[0] = Math.min(1.0, energies[0] + 0.005); // Root
+                    energies[6] = Math.min(1.0, energies[6] + 0.005); // Crown
+                }
+                // Add other mudras here if needed
+
+                allBalanced = false;
+            } else if (!isYogaMode) {
+                // FAST DECAY when inactive
+                for (let i = 0; i < 7; i++) {
+                    energies[i] = Math.max(0.0, energies[i] - 0.01); // Fast decay
+                }
+                allBalanced = false;
+            } else {
+                allBalanced = false;
+            }
+
+            // Check for Full Balance Event
+            if (allBalanced && gestureRef.current !== "Balanced") {
+                gestureRef.current = "Balanced";
+                const msg = "All Chakras are perfectly balanced. You are in harmony.";
                 setFeedback(msg);
                 speak(msg);
-                lastSpeechTextRef.current = msg;
-                lastSpeechTimeRef.current = now;
-            }
-        }
-
-        // 3. Logic: Aura & Energy
-        const isYogaMode = !!currentGesture || isMeditationRef.current;
-
-        // Aura Dynamics
-        if (isYogaMode) {
-            auraIntensityRef.current = Math.min(1.0, auraIntensityRef.current + 0.08); // Faster Rise
-        } else {
-            auraIntensityRef.current = Math.max(0.0, auraIntensityRef.current - 0.08); // Faster Fade
-        }
-
-        // Energy Dynamics
-        const energies = energiesRef.current;
-        let allBalanced = true;
-
-        if (isMeditationRef.current) {
-            // SUPER FAST Rise for ALL chakras (Peaking to 100)
-            for (let i = 0; i < 7; i++) {
-                energies[i] = Math.min(1.0, energies[i] + 0.02); // ~2% per frame (very fast)
-                if (energies[i] < 1.0) allBalanced = false;
-            }
-        } else if (currentGesture) {
-            // If ANY gesture is active, slowly rise ALL energies (so boxes aren't empty)
-            for (let i = 0; i < 7; i++) {
-                energies[i] = Math.min(1.0, energies[i] + 0.001); // Slow base rise
             }
 
-            if (currentGesture === "Gyan Mudra") {
-                // Specific Rise (Faster)
-                energies[0] = Math.min(1.0, energies[0] + 0.005); // Root
-                energies[6] = Math.min(1.0, energies[6] + 0.005); // Crown
+            // Sync UI occasionally (every 10 frames)
+            if (Math.floor(t * 30) % 10 === 0) {
+                setUiEnergies([...energies]);
+
+                // Update Session Time
+                const elapsedMin = (Date.now() - startTimeRef.current) / 60000;
+                setSessionTime(`${elapsedMin.toFixed(1)} min`);
+
+                // Update Mood
+                if (isMeditationRef.current) {
+                    setMood("Peaceful");
+                } else if (gestureRef.current) {
+                    setMood("Focused");
+                } else if (eyesClosedTimeRef.current > 0) {
+                    setMood("Calm");
+                } else {
+                    setMood("Relaxed");
+                }
             }
-            // Add other mudras here if needed
 
-            allBalanced = false;
-        } else if (!isYogaMode) {
-            // FAST DECAY when inactive
-            for (let i = 0; i < 7; i++) {
-                energies[i] = Math.max(0.0, energies[i] - 0.01); // Fast decay
+            // 4. Draw Visuals
+
+            // BACKGROUND SUN AURA (Instead of revolving stars on head)
+            if (auraIntensityRef.current > 0.01) {
+                ctx.save();
+                const cx = width / 2;
+                const cy = height / 2;
+                const maxRadius = Math.max(width, height) * 0.8;
+                const gradient = ctx.createRadialGradient(cx, cy, 100, cx, cy, maxRadius);
+                gradient.addColorStop(0, `rgba(255, 215, 0, ${auraIntensityRef.current * 0.3})`); // Gold center
+                gradient.addColorStop(0.5, `rgba(255, 140, 0, ${auraIntensityRef.current * 0.1})`); // Orange mid
+                gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+                ctx.restore();
             }
-            allBalanced = false;
-        } else {
-            allBalanced = false;
-        }
 
-        // Check for Full Balance Event
-        if (allBalanced && gestureRef.current !== "Balanced") {
-            gestureRef.current = "Balanced";
-            const msg = "All Chakras are perfectly balanced. You are in harmony.";
-            setFeedback(msg);
-            speak(msg);
-        }
+            // Speed factor depends on yoga mode
+            const speedFactor = isYogaMode ? 2.0 : 0.5;
 
-        // Sync UI occasionally (every 10 frames)
-        if (Math.floor(t * 30) % 10 === 0) {
-            setUiEnergies([...energies]);
+            drawUniverse(ctx, width, height, t, speedFactor);
+            const breathFactor = 1.0 + 0.1 * Math.sin(t * 0.8);
 
-            // Update Session Time
-            const elapsedMin = (Date.now() - startTimeRef.current) / 60000;
-            setSessionTime(`${elapsedMin.toFixed(1)} min`);
+            drawChakras(
+                ctx,
+                width * 0.5,
+                height * 0.2,
+                height * 0.8,
+                activeIndexRef.current,
+                energies,
+                breathFactor,
+                t
+            );
 
-            // Update Mood
-            if (isMeditationRef.current) {
-                setMood("Peaceful");
-            } else if (gestureRef.current) {
-                setMood("Focused");
-            } else if (eyesClosedTimeRef.current > 0) {
-                setMood("Calm");
-            } else {
-                setMood("Relaxed");
-            }
-        }
+            requestRef.current = requestAnimationFrame(animate);
+        };
 
-        // 4. Draw Visuals
-
-        // BACKGROUND SUN AURA (Instead of revolving stars on head)
-        if (auraIntensityRef.current > 0.01) {
-            ctx.save();
-            const cx = width / 2;
-            const cy = height / 2;
-            const maxRadius = Math.max(width, height) * 0.8;
-            const gradient = ctx.createRadialGradient(cx, cy, 100, cx, cy, maxRadius);
-            gradient.addColorStop(0, `rgba(255, 215, 0, ${auraIntensityRef.current * 0.3})`); // Gold center
-            gradient.addColorStop(0.5, `rgba(255, 140, 0, ${auraIntensityRef.current * 0.1})`); // Orange mid
-            gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, width, height);
-            ctx.restore();
-        }
-
-        // Speed factor depends on yoga mode
-        const speedFactor = isYogaMode ? 2.0 : 0.5;
-
-        drawUniverse(ctx, width, height, t, speedFactor);
-        const breathFactor = 1.0 + 0.1 * Math.sin(t * 0.8);
-
-        drawChakras(
-            ctx,
-            width * 0.5,
-            height * 0.2,
-            height * 0.8,
-            activeIndexRef.current,
-            energies,
-            breathFactor,
-            t
-        );
-
-        requestRef.current = requestAnimationFrame(animate);
-    };
-
-    useEffect(() => {
         requestRef.current = requestAnimationFrame(animate);
         return () => cancelAnimationFrame(requestRef.current);
     }, [handLandmarker, faceLandmarker]);
@@ -455,11 +473,11 @@ export default function YogaCanvas() {
                 </div>
 
                 {/* DEV DEBUG OVERLAY - MOVED TO TOP CENTER */}
-                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 text-xs text-yellow-500 font-mono bg-black/50 p-2 rounded pointer-events-none text-center z-50">
+                {/* <div className="absolute top-4 left-1/2 transform -translate-x-1/2 text-xs text-yellow-500 font-mono bg-black/50 p-2 rounded pointer-events-none text-center z-50">
                     <div>Meditation: {isMeditationRef.current ? "ON" : "OFF"}</div>
                     <div>Eyes Closed: {eyesClosedTimeRef.current > 0 ? "YES" : "NO"}</div>
                     <div>Energy: {(energiesRef.current[0] * 100).toFixed(0)}%</div>
-                </div>
+                </div> */}
             </div>
         </div>
     );

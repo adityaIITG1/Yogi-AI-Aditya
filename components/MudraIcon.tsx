@@ -17,7 +17,7 @@ export default function MudraIcon({ name, className = "" }: MudraIconProps) {
     // In OpenCV: -y is up. In SVG: -y is up relative to origin? No, SVG y increases downwards.
     // So -s*1.5 in OpenCV (up) means y = cy - s*1.5 in SVG.
 
-    let pts: Record<string, [number, number]> = {
+    const pts: Record<string, [number, number]> = {
         wrist: [0, 1.5],
         thumb_base: [-0.6, 0.8],
         thumb_tip: [-1.2, -0.2],

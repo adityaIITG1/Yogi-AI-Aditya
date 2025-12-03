@@ -11,7 +11,7 @@ export default function BottomOverlay({ feedback }: BottomOverlayProps) {
                 {feedback}
             </div>
             <div className="bg-black/60 text-gray-300 px-2 py-1 text-xs inline-block">
-                Press 'q' to quit
+                Press &apos;q&apos; to quit
             </div>
         </div>
     );
