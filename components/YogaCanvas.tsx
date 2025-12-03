@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useVisionModels } from "@/hooks/useVisionModels";
+import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import {
     classifyGesture,
     detectNamaste,
@@ -23,6 +24,13 @@ export default function YogaCanvas() {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { handLandmarker, faceLandmarker, isLoading, error: aiError } = useVisionModels();
+    const { isListening, isSpeaking, toggleListening } = useVoiceAssistant();
+
+    // Ref to track isSpeaking without triggering re-renders in the animation loop
+    const isSpeakingRef = useRef(isSpeaking);
+    useEffect(() => {
+        isSpeakingRef.current = isSpeaking;
+    }, [isSpeaking]);
 
     const [gesture, setGesture] = useState<string | null>(null);
     const [feedback, setFeedback] = useState("Tip: Focus on breath. Root is strong...");
@@ -58,6 +66,9 @@ export default function YogaCanvas() {
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const speak = (text: string) => {
+        // Prevent overlapping with Intro Speech
+        if (isSpeakingRef.current) return;
+
         if ("speechSynthesis" in window) {
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
@@ -226,9 +237,6 @@ export default function YogaCanvas() {
                 const face = faceResults.faceLandmarks[0];
                 const analysis = analyzeFace(face);
                 isEyesClosed = analysis.isEyesClosed;
-
-                // Debug Eye State occasionally
-                // if (Math.random() < 0.01) console.log("EAR:", analysis.avgEAR, "Closed:", isEyesClosed);
             }
 
             // Meditation Logic (Stabilized)
@@ -428,57 +436,115 @@ export default function YogaCanvas() {
     }, [handLandmarker, faceLandmarker]);
 
     return (
-        <div className="relative w-full h-screen bg-black overflow-hidden flex flex-col">
+        <div className="relative w-full h-screen bg-[#0a0a0a] overflow-hidden flex flex-col font-sans selection:bg-green-500/30">
             {isLoading && (
-                <div className="absolute z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white text-2xl font-light animate-pulse">
-                    Loading AI Models...
+                <div className="absolute z-50 top-0 left-0 w-full h-full bg-black/90 flex flex-col items-center justify-center gap-4">
+                    <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="text-green-400 text-xl font-light tracking-widest animate-pulse">
+                        INITIALIZING AI MODELS...
+                    </div>
                 </div>
             )}
 
+            {/* Indian Flag (Top Left - Floating) */}
+            <div className="absolute top-6 left-8 z-40 group cursor-default">
+                <div className="flex flex-col items-center transform transition-transform group-hover:scale-105 duration-300">
+                    <div className="w-12 h-3 bg-[#FF9933] rounded-t-sm shadow-sm"></div>
+                    <div className="w-12 h-3 bg-white flex items-center justify-center relative shadow-sm">
+                        <div className="w-2.5 h-2.5 rounded-full border-[1.5px] border-[#000080] flex items-center justify-center animate-spin-slow">
+                            <div className="w-0.5 h-0.5 bg-[#000080] rounded-full"></div>
+                        </div>
+                    </div>
+                    <div className="w-12 h-3 bg-[#138808] rounded-b-sm shadow-sm"></div>
+                    <div className="text-[8px] text-white/60 mt-1 font-bold tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity">JAI HIND</div>
+                </div>
+            </div>
+
+            {/* Voice Toggle (Top Right - Floating Glass) */}
+            <div className="absolute top-6 right-8 z-40">
+                <button
+                    onClick={toggleListening}
+                    className={`
+                        px-5 py-2.5 rounded-full backdrop-blur-xl border transition-all duration-300 flex items-center gap-3 shadow-lg
+                        ${isListening
+                            ? "bg-red-500/20 border-red-500/50 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.3)]"
+                            : "bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/30"
+                        }
+                    `}
+                >
+                    {isListening ? (
+                        <>
+                            <span className="relative flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                            </span>
+                            <span className="font-medium text-sm tracking-wide">Listening...</span>
+                        </>
+                    ) : (
+                        <>
+                            <span className="text-lg">🎙️</span>
+                            <span className="font-medium text-sm tracking-wide">Voice AI</span>
+                        </>
+                    )}
+                </button>
+            </div>
+
             {!isPlaying && (
-                <div className="absolute z-50 top-0 left-0 w-full h-full bg-black/80 flex items-center justify-center">
+                <div className="absolute z-50 top-0 left-0 w-full h-full bg-black/80 backdrop-blur-sm flex items-center justify-center">
                     <button
                         onClick={toggleAudio}
-                        className="px-8 py-4 bg-green-600 text-white text-xl rounded-full hover:bg-green-500 transition-all shadow-[0_0_30px_rgba(0,255,0,0.5)]"
+                        className="
+                            group relative px-10 py-5 bg-transparent overflow-hidden rounded-full 
+                            border border-green-500/50 text-white shadow-[0_0_40px_rgba(34,197,94,0.2)]
+                            transition-all duration-500 hover:shadow-[0_0_60px_rgba(34,197,94,0.4)] hover:border-green-400
+                        "
                     >
-                        Start Yoga Experience 🕉️
+                        <div className="absolute inset-0 w-full h-full bg-green-600/20 group-hover:bg-green-600/30 transition-all duration-500"></div>
+                        <span className="relative text-2xl font-light tracking-widest flex items-center gap-4">
+                            <span>START JOURNEY</span>
+                            <span className="text-3xl">🕉️</span>
+                        </span>
                     </button>
                 </div>
             )}
 
-            <TopBar sessionTime={sessionTime} mood={mood} />
+            <TopBar
+                sessionTime={sessionTime}
+                mood={mood}
+            />
 
-            <div className="relative flex-1 w-full h-full overflow-hidden">
-                <video
-                    ref={videoRef}
-                    className="absolute opacity-0 pointer-events-none"
-                    playsInline
-                    muted
-                />
-
-                <canvas
-                    ref={canvasRef}
-                    className="w-full h-full object-cover"
-                />
-
+            <div className="flex-1 flex relative z-10">
                 <LeftSidebar energies={uiEnergies} />
-                <RightSidebar activeGesture={gesture} />
-                <BottomOverlay feedback={feedback} />
 
-                {/* Debug Log (Hidden or Subtle) */}
-                <div className="absolute bottom-16 left-4 text-[10px] text-green-400/50 font-mono pointer-events-none">
-                    {logs.slice(-2).map((log, i) => (
-                        <div key={i}>{log}</div>
-                    ))}
+                <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+                    {/* Vignette Overlay */}
+                    <div className="absolute inset-0 z-20 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_80%,rgba(0,0,0,0.8)_100%)]"></div>
+
+                    {/* Grid Overlay (Subtle) */}
+                    <div className="absolute inset-0 z-10 pointer-events-none opacity-[0.03]"
+                        style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }}>
+                    </div>
+
+                    <video
+                        ref={videoRef}
+                        className="absolute w-full h-full object-cover opacity-0"
+                        playsInline
+                        muted
+                    />
+                    <canvas
+                        ref={canvasRef}
+                        className="w-full h-full object-cover"
+                    />
                 </div>
 
-                {/* DEV DEBUG OVERLAY - MOVED TO TOP CENTER */}
-                {/* <div className="absolute top-4 left-1/2 transform -translate-x-1/2 text-xs text-yellow-500 font-mono bg-black/50 p-2 rounded pointer-events-none text-center z-50">
-                    <div>Meditation: {isMeditationRef.current ? "ON" : "OFF"}</div>
-                    <div>Eyes Closed: {eyesClosedTimeRef.current > 0 ? "YES" : "NO"}</div>
-                    <div>Energy: {(energiesRef.current[0] * 100).toFixed(0)}%</div>
-                </div> */}
+                <RightSidebar activeGesture={gesture} />
             </div>
+
+            <BottomOverlay
+                gesture={gesture}
+                feedback={feedback}
+                logs={logs}
+            />
         </div>
     );
 }

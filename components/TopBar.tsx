@@ -7,14 +7,38 @@ interface TopBarProps {
 
 export default function TopBar({ sessionTime, mood }: TopBarProps) {
     return (
-        <div className="absolute top-0 left-0 w-full h-8 bg-[#282828] flex items-center px-4 text-white font-bold text-sm border-b border-gray-600 z-10">
-            <span className="mr-4">AI ChakraFlow</span>
-            <span className="mx-2 text-gray-400">|</span>
-            <span className="mx-2">Session: {sessionTime}</span>
-            <span className="mx-2 text-gray-400">|</span>
-            <span className="mx-2">Mood: {mood}</span>
-            <span className="mx-2 text-gray-400">|</span>
-            <span className="mx-2">Posture: Adjust spine/shoulders</span>
+        <div className="absolute top-0 left-0 w-full z-30 flex justify-center pt-4 pointer-events-none">
+            <div className="
+                flex items-center gap-6 px-8 py-3 
+                bg-black/40 backdrop-blur-xl border border-white/10 rounded-full 
+                shadow-[0_0_20px_rgba(0,0,0,0.5)]
+                text-white font-medium text-sm tracking-wide
+            ">
+                <div className="flex items-center gap-2">
+                    <span className="text-amber-400 font-bold text-lg">AI ChakraFlow</span>
+                </div>
+
+                <div className="w-px h-4 bg-white/20"></div>
+
+                <div className="flex items-center gap-2">
+                    <span className="text-gray-400 uppercase text-xs">Session</span>
+                    <span className="font-mono text-cyan-300">{sessionTime}</span>
+                </div>
+
+                <div className="w-px h-4 bg-white/20"></div>
+
+                <div className="flex items-center gap-2">
+                    <span className="text-gray-400 uppercase text-xs">Mood</span>
+                    <span className="text-purple-300">{mood}</span>
+                </div>
+
+                <div className="w-px h-4 bg-white/20"></div>
+
+                <div className="flex items-center gap-2">
+                    <span className="text-gray-400 uppercase text-xs">Posture</span>
+                    <span className="text-green-400">Active Tracking</span>
+                </div>
+            </div>
         </div>
     );
 }
