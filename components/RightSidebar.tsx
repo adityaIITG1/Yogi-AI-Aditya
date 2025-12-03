@@ -16,7 +16,7 @@ const MUDRAS = [
 
 export default function RightSidebar({ activeGesture }: RightSidebarProps) {
     return (
-        <div className="absolute top-4 bottom-4 right-6 w-[280px] flex flex-col gap-3 z-20 pointer-events-none">
+        <div className="absolute top-4 bottom-32 right-6 w-[280px] flex flex-col gap-3 z-20 pointer-events-none">
 
             {/* Touch Nose Indicator (Premium & Popping) */}
             <div className="relative group overflow-hidden rounded-xl p-0.5 animate-pulse-slow">
@@ -55,7 +55,7 @@ export default function RightSidebar({ activeGesture }: RightSidebarProps) {
             </div>
 
             {/* Mudra List */}
-            <div className="flex-1 flex flex-col gap-3 overflow-y-auto min-h-0 pr-1 scrollbar-hide">
+            <div className="flex-1 flex flex-col gap-3 overflow-y-auto min-h-0 pr-1 scrollbar-hide pointer-events-auto">
                 {MUDRAS.map((m) => {
                     const isActive = activeGesture && activeGesture.includes(m.name);
 
@@ -97,7 +97,7 @@ export default function RightSidebar({ activeGesture }: RightSidebarProps) {
             </div>
 
             {/* Info Panel (HUD Style) */}
-            <div className="bg-black/90 backdrop-blur-2xl border-t-2 border-green-500 rounded-xl p-5 shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
+            <div className="bg-black/90 backdrop-blur-2xl border-t-2 border-green-500 rounded-xl p-5 shadow-[0_10px_40px_rgba(0,0,0,0.8)] pointer-events-auto">
                 <h3 className="text-green-400 font-bold text-xs uppercase tracking-widest mb-4 flex justify-between items-center border-b border-white/10 pb-2">
                     AI Coach
                     <span className="text-[10px] bg-green-500/20 border border-green-500/50 px-2 py-0.5 rounded text-green-300 shadow-[0_0_10px_rgba(34,197,94,0.2)]">ONLINE</span>
