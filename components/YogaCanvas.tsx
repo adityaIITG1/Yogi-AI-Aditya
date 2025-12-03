@@ -57,20 +57,26 @@ export default function YogaCanvas() {
 
     // XP & Level State
     const xpRef = useRef(0.0);
-    const levelRef = useRef(3);
-    const warningMsgRef = useRef<string | null>(null);
-    const pranaRef = useRef(0); // Kumbhaka
-    const namasteHoldTimeRef = useRef(0); // Screenshot Trigger
-    const lastScreenshotTimeRef = useRef(0);
     const lastDetectionTimeRef = useRef(0);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lastHandResultsRef = useRef<any>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lastFaceResultsRef = useRef<any>(null);
-
-    // Third Eye & Particles
-    const thirdEyeRef = useRef({ dwellTime: 0, target: null as string | null });
+    const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const detectionCycleRef = useRef(0);
     const particlesRef = useRef<Array<{ x: number, y: number, vx: number, vy: number, life: number, type: string, color: string }>>([]);
+    const levelRef = useRef(3);
+    const warningMsgRef = useRef<string | null>(null);
+    const pranaRef = useRef(0);
+    const namasteHoldTimeRef = useRef(0);
+    const lastScreenshotTimeRef = useRef(0);
+    const thirdEyeRef = useRef({ dwellTime: 0, target: null as string | null });
+
+    // Debounce Refs
+    const pendingGestureRef = useRef<string | null>(null);
+    const pendingGestureStartTimeRef = useRef(0);
+    const lastSpeechTimeRef = useRef(0);
+    const lastSpeechTextRef = useRef("");
 
     // UI State for Level & Stats
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -79,21 +85,15 @@ export default function YogaCanvas() {
     const [levelProgress, setLevelProgress] = useState(0);
     const [warningMsg, setWarningMsg] = useState<string | null>(null);
     const [mood, setMood] = useState("Relaxed");
+    const [namasteHoldTime, setNamasteHoldTime] = useState(0);
     const [posture, setPosture] = useState("Good");
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [alignmentMode, setAlignmentMode] = useState("Standard");
-
-    // Debounce Refs
-    const pendingGestureRef = useRef<string | null>(null);
-    const pendingGestureStartTimeRef = useRef(0);
-    const lastSpeechTimeRef = useRef(0);
-    const lastSpeechTextRef = useRef("");
 
     // React State for UI updates (Sidebar)
     const [uiEnergies, setUiEnergies] = useState<number[]>([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
     const [sessionTime, setSessionTime] = useState("0.0 min");
     const [screenshotFlash, setScreenshotFlash] = useState(false);
-    const [namasteHoldTime, setNamasteHoldTime] = useState(0);
 
     const addLog = (msg: string) => setLogs(prev => [...prev.slice(-4), msg]);
 
@@ -355,26 +355,46 @@ export default function YogaCanvas() {
             ctx.drawImage(video, 0, 0, width, height);
             ctx.restore();
 
-            // 2. AI Detection (Throttled to ~30fps)
+            // 2. AI Detection (Throttled & Optimized)
             const now = Date.now();
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let handResults = { landmarks: [] as any[], worldLandmarks: [] as any[] };
+            let handResults = lastHandResultsRef.current || { landmarks: [], worldLandmarks: [] };
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let faceResults = { faceLandmarks: [] as any[] };
+            let faceResults = lastFaceResultsRef.current || { faceLandmarks: [] };
 
-            // Throttle detection to every 66ms (approx 15fps)
-            if (now - lastDetectionTimeRef.current > 66) {
-                handResults = handLandmarker.detectForVideo(video, now);
-                faceResults = faceLandmarker.detectForVideo(video, now);
+            // Throttle detection to every 33ms (approx 30fps checks, but interleaved)
+            if (now - lastDetectionTimeRef.current > 33) {
                 lastDetectionTimeRef.current = now;
 
-                // Store results for rendering in between frames
-                lastHandResultsRef.current = handResults;
-                lastFaceResultsRef.current = faceResults;
-            } else {
-                // Use cached results for smooth rendering
-                handResults = lastHandResultsRef.current || { landmarks: [], worldLandmarks: [] };
-                faceResults = lastFaceResultsRef.current || { faceLandmarks: [] };
+                // Create/Update Offscreen Canvas for AI (360p)
+                if (!offscreenCanvasRef.current) {
+                    offscreenCanvasRef.current = document.createElement('canvas');
+                    offscreenCanvasRef.current.width = 640;
+                    offscreenCanvasRef.current.height = 360;
+                }
+                const offCtx = offscreenCanvasRef.current.getContext('2d');
+                if (offCtx) {
+                    offCtx.drawImage(video, 0, 0, 640, 360);
+
+                    // Interleaved Detection: Alternate between Hand and Face
+                    if (detectionCycleRef.current === 0) {
+                        // Cycle 0: Detect Hands
+                        const results = handLandmarker.detectForVideo(offscreenCanvasRef.current, now);
+                        if (results.landmarks) {
+                            handResults = results;
+                            lastHandResultsRef.current = handResults;
+                        }
+                        detectionCycleRef.current = 1;
+                    } else {
+                        // Cycle 1: Detect Face
+                        const results = faceLandmarker.detectForVideo(offscreenCanvasRef.current, now);
+                        if (results.faceLandmarks) {
+                            faceResults = results;
+                            lastFaceResultsRef.current = faceResults;
+                        }
+                        detectionCycleRef.current = 0;
+                    }
+                }
             }
 
             let currentGesture = null;
