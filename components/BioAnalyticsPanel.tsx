@@ -216,12 +216,12 @@ export default function BioAnalyticsPanel({
                 }
             };
 
-            const graphH = 50; // Slightly reduced height to fit
-            const gap = 10; // Slightly reduced gap
-            const startY = 130; // Moved up slightly
-            const panelW = 480;
-            const graphW = panelW - 40;
-            const graphX = 20;
+            const graphH = 40; // Reduced height
+            const gap = 8; // Reduced gap
+            const startY = 100; // Moved up
+            const panelW = 300; // Reduced width
+            const graphW = panelW - 30;
+            const graphX = 15;
 
             drawGraph("HEART RHYTHM", pulseDataRef.current, graphX, startY, graphW, graphH, 'rgb(0, 0, 255)', 'line');
 
@@ -237,18 +237,18 @@ export default function BioAnalyticsPanel({
             drawGraph(`HRV Index: ${hrvIndexRef.current} ms`, hrvIndexDataRef.current, graphX, startY + (graphH + gap) * 4, graphW, graphH, 'rgb(200, 255, 200)', 'area');
 
             // --- NADI PARIKSHA (Tiny Graphs) ---
-            const tgY = startY + (graphH + gap) * 5 + 20;
+            const tgY = startY + (graphH + gap) * 5 + 15;
             ctx.fillStyle = '#ffffff';
-            ctx.font = '12px sans-serif';
+            ctx.font = '10px sans-serif';
             ctx.fillText("Nadi Pariksha (Doshas):", graphX, tgY);
 
             const drawTinyBar = (label: string, data: number[], x: number, y: number, color: string) => {
                 ctx.fillStyle = color;
                 ctx.fillText(label, x, y);
-                const barH = 15;
-                const barW = 80; // Wider bars
+                const barH = 10;
+                const barW = 50; // Narrower bars
                 const bx = x;
-                const by = y + 5;
+                const by = y + 4;
 
                 // Draw bars
                 const bw = barW / Math.max(1, data.length);
@@ -259,24 +259,24 @@ export default function BioAnalyticsPanel({
             };
 
             // Spread out tiny graphs
-            drawTinyBar("Vata", vataHistoryRef.current, graphX, tgY + 20, 'rgb(255, 200, 100)');
-            drawTinyBar("Pitta", pittaHistoryRef.current, graphX + 120, tgY + 20, 'rgb(255, 0, 0)');
-            drawTinyBar("Kapha", kaphaHistoryRef.current, graphX + 240, tgY + 20, 'rgb(0, 255, 0)');
+            drawTinyBar("Vata", vataHistoryRef.current, graphX, tgY + 15, 'rgb(255, 200, 100)');
+            drawTinyBar("Pitta", pittaHistoryRef.current, graphX + 90, tgY + 15, 'rgb(255, 0, 0)');
+            drawTinyBar("Kapha", kaphaHistoryRef.current, graphX + 180, tgY + 15, 'rgb(0, 255, 0)');
 
             ctx.fillStyle = 'rgba(200, 255, 255, 1)';
-            ctx.fillText(findingRef.current, graphX, tgY + 55);
+            ctx.fillText(findingRef.current, graphX, tgY + 45);
 
             // --- ENERGY COHERENCE RADAR ---
-            const guideY = tgY + 65;
-            const coherenceY = guideY + 55; // Moved down slightly
+            const guideY = tgY + 55;
+            const coherenceY = guideY + 50;
             const coherenceX = panelW / 2;
-            const radius = 20 + energyLevelRef.current * 30;
+            const radius = 15 + energyLevelRef.current * 25; // Smaller radius
 
             // Radar Background
             ctx.strokeStyle = '#333';
-            ctx.beginPath(); ctx.arc(coherenceX, coherenceY, 50, 0, Math.PI * 2); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(coherenceX - 50, coherenceY); ctx.lineTo(coherenceX + 50, coherenceY); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(coherenceX, coherenceY - 50); ctx.lineTo(coherenceX, coherenceY + 50); ctx.stroke();
+            ctx.beginPath(); ctx.arc(coherenceX, coherenceY, 40, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(coherenceX - 40, coherenceY); ctx.lineTo(coherenceX + 40, coherenceY); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(coherenceX, coherenceY - 40); ctx.lineTo(coherenceX, coherenceY + 40); ctx.stroke();
 
             // Dynamic Blob
             ctx.beginPath();
@@ -301,11 +301,11 @@ export default function BioAnalyticsPanel({
             ctx.stroke();
 
             ctx.fillStyle = '#cccccc';
-            ctx.fillText(`Energy Coherence: ${Math.round(energyLevelRef.current * 100)}%`, coherenceX - 60, coherenceY + 60);
+            ctx.fillText(`Energy Coherence: ${Math.round(energyLevelRef.current * 100)}%`, coherenceX - 50, coherenceY + 55);
 
             // --- DATA ANALYSIS BOT ---
-            const botY = coherenceY + radius + 30;
-            const botX = 70; // Fixed left position
+            const botY = coherenceY + radius + 40;
+            const botX = 50; // Fixed left position
 
             // Update Bot State
             const t = Date.now() / 1000;
@@ -319,28 +319,28 @@ export default function BioAnalyticsPanel({
 
             // Draw Head
             ctx.fillStyle = '#323232';
-            ctx.beginPath(); ctx.arc(botX, botY, 25, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(botX, botY, 20, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = '#00ffff';
             ctx.lineWidth = 2;
             ctx.stroke();
 
             // Eyes
             if (isBlink) {
-                ctx.beginPath(); ctx.moveTo(botX - 12, botY - 4); ctx.lineTo(botX - 4, botY - 4); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(botX + 4, botY - 4); ctx.lineTo(botX + 12, botY - 4); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(botX - 10, botY - 3); ctx.lineTo(botX - 3, botY - 3); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(botX + 3, botY - 3); ctx.lineTo(botX + 10, botY - 3); ctx.stroke();
             } else {
                 ctx.fillStyle = '#ffffff';
-                ctx.beginPath(); ctx.arc(botX - 8, botY - 4, 7, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(botX + 8, botY - 4, 7, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(botX - 6, botY - 3, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(botX + 6, botY - 3, 5, 0, Math.PI * 2); ctx.fill();
 
                 ctx.fillStyle = '#000000';
-                ctx.beginPath(); ctx.arc(botX - 8 + eyeDx, botY - 4, 3, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(botX + 8 + eyeDx, botY - 4, 3, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(botX - 6 + eyeDx, botY - 3, 2, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(botX + 6 + eyeDx, botY - 3, 2, 0, Math.PI * 2); ctx.fill();
             }
 
             // Smile
             ctx.beginPath();
-            ctx.ellipse(botX, botY + 5, 11, 7, 0, 0.1 * Math.PI, 0.9 * Math.PI);
+            ctx.ellipse(botX, botY + 4, 9, 5, 0, 0.1 * Math.PI, 0.9 * Math.PI);
             ctx.stroke();
 
             // Typing Text
@@ -356,19 +356,19 @@ export default function BioAnalyticsPanel({
             const currentText = insightTextRef.current.substring(0, Math.floor(typingCharCountRef.current));
 
             // Text Bubble
-            ctx.font = '14px sans-serif';
+            ctx.font = '12px sans-serif';
             const textMetrics = ctx.measureText(currentText);
             const tw = textMetrics.width;
             const bx = botX - tw / 2; // Center above bot
-            const by = botY - 45;
+            const by = botY - 35;
 
             // Clamp to canvas
             const finalBx = Math.max(10, Math.min(w - tw - 10, bx));
 
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(finalBx - 5, by - 15, tw + 10, 20);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(finalBx - 5, by - 12, tw + 10, 16);
             ctx.strokeStyle = '#00ffff';
-            ctx.strokeRect(finalBx - 5, by - 15, tw + 10, 20);
+            ctx.strokeRect(finalBx - 5, by - 12, tw + 10, 16);
 
             ctx.fillStyle = '#ffffff';
             ctx.fillText(currentText, finalBx, by);
@@ -381,38 +381,38 @@ export default function BioAnalyticsPanel({
     }, []); // Empty dependency array for stable loop
 
     return (
-        <div className="relative w-[480px] h-[720px] bg-[#05080f] border-2 border-[#00d7ff] rounded-lg overflow-hidden shadow-[0_0_30px_rgba(0,215,255,0.3)]">
+        <div className="relative w-[300px] h-[600px] bg-black/20 backdrop-blur-md border border-[#00d7ff]/30 rounded-lg overflow-hidden shadow-[0_0_20px_rgba(0,215,255,0.1)] transition-all duration-300">
             {/* Header */}
-            <div className="absolute top-5 left-0 w-full text-center">
-                <h3 className="text-[#00ffff] font-sans text-sm font-bold tracking-widest">BIO-ANALYTICS ENGINE</h3>
+            <div className="absolute top-3 left-0 w-full text-center">
+                <h3 className="text-[#00ffff] font-sans text-xs font-bold tracking-widest opacity-80">BIO-ANALYTICS</h3>
             </div>
 
             {/* Numeric Stats */}
-            <div className="absolute top-16 left-10 flex items-center gap-4">
+            <div className="absolute top-10 left-5 flex items-center gap-3">
                 {/* Heart Icon */}
-                <div className={`text-4xl ${beatDetected ? 'text-red-600 scale-125' : 'text-red-800'} transition-transform duration-100`}>
+                <div className={`text-2xl ${beatDetected ? 'text-red-600 scale-125' : 'text-red-800'} transition-transform duration-100`}>
                     ♥
                 </div>
                 <div>
-                    <div className="text-4xl font-bold text-white font-mono">{heartRate}</div>
-                    <div className="text-xs text-cyan-200">BPM</div>
+                    <div className="text-2xl font-bold text-white font-mono">{heartRate}</div>
+                    <div className="text-[10px] text-cyan-200">BPM</div>
                 </div>
-                <div className="ml-4">
-                    <div className="text-2xl font-bold text-blue-400 font-mono">Oxygen: {spo2}%</div>
+                <div className="ml-2">
+                    <div className="text-lg font-bold text-blue-400 font-mono">O₂: {spo2}%</div>
                 </div>
             </div>
 
             {/* Canvas Layer */}
             <canvas
                 ref={canvasRef}
-                width={480}
-                height={720}
+                width={300}
+                height={600}
                 className="absolute top-0 left-0 w-full h-full pointer-events-none"
             />
 
             {/* Connection Status */}
-            <div className="absolute top-5 right-5">
-                <div className={`w-3 h-3 rounded-full shadow-[0_0_10px_currentColor] ${isConnected ? 'bg-green-500 text-green-500 animate-pulse' : 'bg-red-500 text-red-500'}`}></div>
+            <div className="absolute top-3 right-3">
+                <div className={`w-2 h-2 rounded-full shadow-[0_0_5px_currentColor] ${isConnected ? 'bg-green-500 text-green-500 animate-pulse' : 'bg-red-500 text-red-500'}`}></div>
             </div>
         </div>
     );
